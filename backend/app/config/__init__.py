@@ -1,0 +1,1 @@
+﻿"""Vertical configuration package."""
