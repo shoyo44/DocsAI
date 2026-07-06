@@ -25,6 +25,12 @@ backend/data/
 *.sqlite
 *.sqlite3
 
+# Local sample documents and private notes
+*.pdf
+AI_DocQA_Implementation_Plan.md
+backend/scratch_test_auto.py
+test_upload.py
+
 # Node / frontend
 node_modules/
 frontend/node_modules/
