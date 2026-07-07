@@ -84,13 +84,16 @@ async def run_startup_connectivity_check(app: FastAPI) -> None:
 
     # 5. MongoDB History DB connectivity
     if getattr(app.state, "mongodb_client", None):
-        try:
-            app.state.mongodb_client.admin.command('ping')
-            db_name = os.getenv("MONGODB_DB", "job_agent")
-            coll_name = os.getenv("MONGODB_COLLECTION", "applications")
-            print(f"  [OK] MongoDB History DB:      CONNECTED (DB={db_name}, Coll={coll_name})")
-        except Exception as exc:
-            print(f"  [FAIL] MongoDB History DB:    CONNECTION FAILED: {exc}")
+        if getattr(app.state, "mongodb_is_fallback", False):
+            print("  [OK] MongoDB History DB:      CONNECTED (Local JSON Fallback DB)")
+        else:
+            try:
+                app.state.mongodb_client.admin.command('ping')
+                db_name = os.getenv("MONGODB_DB", "job_agent")
+                coll_name = os.getenv("MONGODB_COLLECTION", "applications")
+                print(f"  [OK] MongoDB History DB:      CONNECTED (DB={db_name}, Coll={coll_name})")
+            except Exception as exc:
+                print(f"  [FAIL] MongoDB History DB:    CONNECTION FAILED: {exc}")
     else:
         print("  [-] MongoDB History DB:      DISABLED (Not Configured)")
 
@@ -139,20 +142,31 @@ async def lifespan(app: FastAPI):
     # 6. MongoDB connection for query log history
     mongodb_uri = os.getenv("MONGODB_URI")
     mongodb_db_name = os.getenv("MONGODB_DB", "job_agent")
+    
+    app.state.mongodb_is_fallback = False
+    
     if mongodb_uri:
         try:
             import pymongo
             app.state.mongodb_client = pymongo.MongoClient(mongodb_uri, serverSelectionTimeoutMS=2000)
+            # Verify connectivity immediately
+            app.state.mongodb_client.admin.command('ping')
             app.state.mongodb_db = app.state.mongodb_client[mongodb_db_name]
             logger.info("MongoDB client connected to database: %s", mongodb_db_name)
         except Exception as exc:
-            app.state.mongodb_client = None
-            app.state.mongodb_db = None
-            logger.error("Failed to initialize MongoDB client: %s", exc)
+            logger.warning("Failed to connect to MongoDB Atlas (%s). Initializing local JSON fallback database...", exc)
+            from app.core.json_fallback_db import JSONFallbackClient
+            fallback_dir = os.path.join(data_dir, "json_db")
+            app.state.mongodb_client = JSONFallbackClient(db_dir=fallback_dir)
+            app.state.mongodb_db = app.state.mongodb_client[mongodb_db_name]
+            app.state.mongodb_is_fallback = True
     else:
-        app.state.mongodb_client = None
-        app.state.mongodb_db = None
-        logger.info("MongoDB history logs disabled (MONGODB_URI not configured).")
+        logger.info("MongoDB URI not configured. Initializing local JSON fallback database...")
+        from app.core.json_fallback_db import JSONFallbackClient
+        fallback_dir = os.path.join(data_dir, "json_db")
+        app.state.mongodb_client = JSONFallbackClient(db_dir=fallback_dir)
+        app.state.mongodb_db = app.state.mongodb_client[mongodb_db_name]
+        app.state.mongodb_is_fallback = True
 
     # 7. Helper: expose asyncio event loop helper for routes/pipeline
     app.state.get_running_loop = asyncio.get_running_loop
@@ -237,11 +251,24 @@ def health_check():
         except Exception:
             pass
 
+    # Verify MongoDB
+    mongodb_status = "disabled"
+    if getattr(app.state, "mongodb_db", None) is not None:
+        if getattr(app.state, "mongodb_is_fallback", False):
+            mongodb_status = "connected_fallback"
+        else:
+            try:
+                app.state.mongodb_client.admin.command('ping')
+                mongodb_status = "connected"
+            except Exception:
+                mongodb_status = "failed"
+
     return {
         "status": "healthy" if (graph_ok and (app.state.redis is None or redis_ok)) else "degraded",
         "timestamp": time.time(),
         "database": {
             "graph_store": "connected" if graph_ok else "failed",
             "redis": "connected" if redis_ok else ("disabled" if not app.state.redis else "failed"),
+            "mongodb": mongodb_status,
         }
     }

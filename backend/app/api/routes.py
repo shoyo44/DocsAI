@@ -240,7 +240,70 @@ async def upload_document(
     }
 
 
-# ─── Job Status Endpoints ─────────────────────────────────────────────────────
+
+# ─── Vertical Auto-Detection Endpoint (Two-Phase Classifier Agent) ────────────
+
+@router.post("/detect-vertical")
+async def detect_vertical(
+    request:   Request,
+    file:      UploadFile = File(...),
+    tenant_id: str        = Query(...),
+    cf_client: Any        = Depends(get_llm_client),
+):
+    """
+    Upload a document preview for automatic type detection.
+
+    Internally runs the DocumentClassifierAgent which:
+      Phase 1 — summarises the document (document type, topics, entities, audience)
+      Phase 2 — classifies the vertical and generates an AI suggestion paragraph
+
+    Returns full enriched response:
+    {
+      vertical, confidence, ai_suggestion, alternative_vertical,
+      classification_notes, summary { document_type, main_topics, ... }, meta
+    }
+    """
+    import tempfile
+    from app.features.document_classifier_agent import DocumentClassifierAgent
+
+    suffix   = os.path.splitext(file.filename or "doc")[1] or ".pdf"
+    tmp_path = None
+
+    try:
+        # Persist the upload stream so the agent can open the file from disk
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp_path = tmp.name
+            content  = await file.read()
+            tmp.write(content)
+
+        agent  = DocumentClassifierAgent(cf_client=cf_client)
+        result = await agent.run(file_path=tmp_path, filename=file.filename or "document")
+
+        return result.to_api_response()
+
+    except Exception as exc:
+        logger.exception("detect-vertical endpoint error:")
+        return {
+            "vertical":             "university",
+            "confidence":           "LOW",
+            "ai_suggestion":        (
+                "The classifier agent encountered an unexpected error. "
+                "Please select the document type manually before ingesting."
+            ),
+            "alternative_vertical": None,
+            "classification_notes": str(exc),
+            "summary":              {},
+            "meta":                 {},
+        }
+
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+
+
 
 @router.get("/jobs/{job_id}")
 def get_job_status(job_id: str, request: Request):

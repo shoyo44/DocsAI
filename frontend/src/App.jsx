@@ -5,6 +5,7 @@ import Vault from './pages/Vault';
 import Chat from './pages/Chat';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
+import History from './pages/History';
 import { AppContextProvider } from './context/AppContext';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
             <Route path="vault" element={<Vault />} />
             <Route path="chat" element={<Chat />} />
             <Route path="analytics" element={<Analytics />} />
+            <Route path="history" element={<History />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>

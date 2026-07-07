@@ -21,6 +21,7 @@ const Sidebar = () => {
     { name: 'Agent Chat', path: '/chat', icon: MessageSquare },
     { name: 'Document Vault', path: '/vault', icon: Files },
     { name: 'Analytics', path: '/analytics', icon: Activity },
+    { name: 'History', path: '/history', icon: Clock },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
