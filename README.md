@@ -69,7 +69,7 @@ graph TD
 
 ---
 
-## 🌟 Core Features
+## 🌟 Core Backend & System Features
 
 ### 1. 🧠 Multi-Vertical Intent Routing
 DocsAI supports multiple business domains natively, each configured with specific prompting agents, chunking rules, and retrieval strategy parameters:
@@ -80,27 +80,61 @@ DocsAI supports multiple business domains natively, each configured with specifi
 *   **HR Policies:** Accesses employee handbooks, reviews policies, and answers HR questions with cited rules.
 *   *An intelligent **AI Intent Router** automatically classifies user queries and routes them to the correct vertical pipeline dynamically.*
 
-### 2. ⚡ In-Process Graph Database & FAISS Vector Index
-Replaces resource-heavy Neo4j clusters with a custom, thread-safe, memory-efficient in-process Graph Database:
-*   **NetworkX Topology:** Maps document-to-chunk parent relationships, entity links, and keyword cross-references.
-*   **FAISS Vector Acceleration:** Embeds text chunks via Nomic Atlas embeddings and performs high-speed vector retrieval using FAISS CPU indices (with optimized NumPy fallback).
-*   **Thread Safety:** Powered by a re-entrant Reader-Writer Lock (`RWLock`) to allow concurrent reads and serialized background disk writes.
+---
 
-### 3. 🛡️ Firebase Google Identity Authentication
-*   Fully integrated with Google Identity via **Firebase Authentication**.
-*   Offers a seamless Google Accounts pop-up chooser for logins.
-*   **Developer Mode Fallback:** Automatically switches to mock login mode if Firebase API credentials are not configured in the `.env` file on start, ensuring development stays friction-free.
+### 2. 📸 Multimodal RAG Ingestion Pipeline
+DocsAI handles image-heavy, scanned, and digital documents through a robust, asynchronous **5-Tier Multimodal Ingestion Pipeline**:
+*   **Tier 1: Native Text Extraction:** Inspects and parses digital PDF layers directly to extract clean Unicode text structures.
+*   **Tier 2: PyTesseract OCR:** Triggers local optical character recognition if a page is determined to be scanned or blank.
+*   **Tier 3: AWS Textract:** Secondary commercial cloud engine fallback for tables and complex tabular layouts.
+*   **Tier 4: OCR.space API:** Tertiary high-accuracy backup API to parse document sections.
+*   **Tier 5: Cloudflare Workers AI Vision OCR:** Employs vision-language transformers to process visual pages and describe embedded charts, figures, and diagrams as first-class text features (`[VISUAL DESCRIPTION: ...]`). Includes a *hallucination guard* that calculates repetition ratios to auto-reject looping model outputs.
 
-### 4. 🗂️ Ingestion Vault & Auto-Classification
+---
+
+### 3. ⚡ In-Process Graph Database
+Replaces resource-heavy external graph infrastructure with a thread-safe, memory-efficient **hybrid Vector-Graph Store**:
+*   **NetworkX Topology:** Stores parent-child relationships between documents and chunks, entity extraction linkages (obligations, authors, clauses), and keyword cross-references.
+*   **FAISS Vector Acceleration:** Embeds text chunks via `nomic-embed-text` and structures high-speed nearest-neighbor retrieval indexes.
+*   **Re-Entrant RWLock Safety:** Regulates multi-threaded performance with a Reader-Writer lock. Supports unlimited parallel reads during search queries and safely serializes background disk write-backs to `graph_store.json` during file ingestion.
+
+---
+
+### 4. 🤖 Multi-Step ReAct Agent Orchestrator
+For cross-document, comparative, or analytical inquiries, DocsAI triggers a fully autonomous planning and execution cycle:
+*   **AgentPlanner:** Uses LLM reasoning to decompose user prompts into a structured list of dependent tools steps.
+*   **AgentExecutor:** Resolves variable dependencies sequentially, calls appropriate pipeline actions (like `search_documents`, `metadata_aggregation`, or `redflags_audit`), and records execution traces.
+*   **Synthesis Engine:** Combines intermediate tool responses and yields a unified comparative response complete with dynamic citations.
+
+---
+
+### 5. 🛡️ Input & Security Guardrails
+Maintains robust safety margins at the API level before dispatching queries to RAG pipelines or LLMs:
+*   **Jailbreak Prevention:** Scans inputs with pattern regexes to block prompts attempting to override rules, reveal instructions, or bypass default settings (e.g. `ignore previous instructions`, `reveal system prompt`).
+*   **Content Sanitization:** Automatically flags and blocks requests containing toxic keywords, malicious code execution requests, or authentication bypass instructions.
+
+---
+
+### 6. 🔐 Firebase Google Identity Authentication
+*   **Google OAuth Single Sign-On:** Integrates with the Firebase Web SDK to trigger a secure browser account chooser.
+*   **Developer Mode Fallback:** Automatically falls back to a simulated Dev User session if Firebase API keys are unconfigured, allowing offline local testing.
+
+---
+
+### 🗂️ Ingestion Vault & Background Jobs
 *   Upload documents to the **Document Vault**.
 *   Two-phase classification agent automatically scans text previews and auto-detects the document vertical (Law, HR, Startup, etc.).
 *   Documents are processed in the background using an asynchronous `asyncio` job queue.
 
-### 5. 🔍 Auditing Logs & MongoDB History
+---
+
+### 🔍 Auditing Logs & MongoDB History
 *   Keeps session conversation logs and query execution parameters synced with MongoDB Atlas (stored in the constraint-free `chat_history` collection).
 *   Tracks average retrieval latency, query response confidence scores, and unanswerable question analytics in the **History** and **Analytics** dashboards.
 
-### 6. 🎨 Premium Light UI Theme
+---
+
+### 🎨 Premium Light UI Theme
 *   Stunning glassmorphism design system using HSL variables.
 *   Subtle background grid mesh and micro-animations.
 *   Interactive **Knowledge Graph Visualizer** viewport rendered on an engineering-grade dark coordinate grid with radial glows.
