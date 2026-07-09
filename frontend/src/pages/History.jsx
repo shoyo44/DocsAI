@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, Search, MessageSquare, Database, Trash2, Cpu, ChevronRight, AlertCircle, Calendar, Zap, RefreshCw, Filter } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../components/Toast';
 import './History.css';
 
 const History = () => {
   const { tenantId, vertical: appVertical, apiBase } = useApp();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('queries'); // 'queries' or 'chats'
   const [selectedVertical, setSelectedVertical] = useState(appVertical || 'all');
   const [queries, setQueries] = useState([]);
@@ -89,9 +91,9 @@ const History = () => {
         });
       }
       setChats([]);
-      alert("Chat history successfully cleared.");
+      toast.success("History Cleared", "Chat logs for the vertical(s) were successfully deleted.");
     } catch (err) {
-      alert("Failed to clear chat history: " + err.message);
+      toast.error("Clear Failed", `Could not clear conversation logs: ${err.message}`);
     } finally {
       setClearing(false);
       loadData();

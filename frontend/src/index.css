@@ -2,9 +2,9 @@
 
 :root {
   /* Nordic Slate Light Mode Palette */
-  --bg-primary: #f8fafc; /* Very light slate */
-  --bg-secondary: #f1f5f9;
-  --bg-tertiary: #e2e8f0;
+  --bg-primary: #f5f7fa; /* Clean light slate background */
+  --bg-secondary: #ffffff; /* Elegant white panels */
+  --bg-tertiary: #f8fafc; /* Subtle inner highlight surfaces */
   
   --text-primary: #0f172a;
   --text-secondary: #475569;
@@ -12,24 +12,24 @@
   
   --accent-primary: #0284c7; /* Nordic Ocean Blue */
   --accent-hover: #0369a1;
-  --accent-light: #e0f2fe;
+  --accent-light: #f0f9ff;
   
-  --border-subtle: #cbd5e1;
-  --border-strong: #94a3b8;
+  --border-subtle: #e2e8f0; /* Soft slate border */
+  --border-strong: #cbd5e1;
   
-  --success: #059669;
-  --warning: #d97706;
-  --error: #e11d48;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
   
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-glow: 0 0 20px rgba(2, 132, 199, 0.15);
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.03);
+  --shadow-md: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 8px -1px rgba(15, 23, 42, 0.02);
+  --shadow-lg: 0 20px 40px -10px rgba(15, 23, 42, 0.06), 0 0 1px rgba(15, 23, 42, 0.05);
+  --shadow-glow: 0 0 20px rgba(2, 132, 199, 0.08);
   
-  --radius-sm: 6px;
-  --radius-md: 12px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
   --radius-lg: 20px;
   --radius-full: 9999px;
   
@@ -127,10 +127,23 @@ button {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 @keyframes pulse-glow {
   0% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.4); }
   70% { box-shadow: 0 0 0 10px rgba(2, 132, 199, 0); }
   100% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0); }
+}
+
+.animate-pulse {
+  animation: pulse-glow 2s ease-in-out infinite;
 }
 
 /* Scrollbar */

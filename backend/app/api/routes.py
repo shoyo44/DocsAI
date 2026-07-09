@@ -43,6 +43,9 @@ class QueryRequest(BaseModel):
     tenant_id:  str
     vertical:   str
     keyword:    Optional[str] = ""
+    temperature: Optional[float] = None
+    top_k:       Optional[int] = None
+    score_floor: Optional[float] = None
 
 
 class SupersedeRequest(BaseModel):
@@ -397,6 +400,14 @@ async def query_vertical(
         factory = request.app.state.pipeline_factory
         pipeline = factory.build_pipeline(active_vertical, cf_client, reranker)
 
+        # Override pipeline config parameters if specified in payload
+        if payload.temperature is not None:
+            pipeline.config["temperature"] = payload.temperature
+        if payload.top_k is not None:
+            pipeline.config["top_k"] = payload.top_k
+        if payload.score_floor is not None:
+            pipeline.config["score_floor"] = payload.score_floor
+
         # 3. Execute pipeline
         result = await pipeline.query(
             query_text=payload.query_text,
@@ -565,7 +576,7 @@ def save_chat_message(
         )
     try:
         import time
-        coll_name = os.getenv("MONGODB_COLLECTION", "applications")
+        coll_name = os.getenv("MONGODB_COLLECTION", "chat_history")
         doc = {
             "tenant_id": payload.tenant_id,
             "vertical": payload.vertical,
@@ -598,7 +609,7 @@ def get_chat_history(
             detail="MongoDB is offline or not configured."
         )
     try:
-        coll_name = os.getenv("MONGODB_COLLECTION", "applications")
+        coll_name = os.getenv("MONGODB_COLLECTION", "chat_history")
         cursor = mongodb_db[coll_name].find(
             {"tenant_id": tenant_id, "vertical": vertical, "type": "chat_message"}
         ).sort("created_at", 1)
@@ -632,7 +643,7 @@ def clear_chat_history(
             detail="MongoDB is offline or not configured."
         )
     try:
-        coll_name = os.getenv("MONGODB_COLLECTION", "applications")
+        coll_name = os.getenv("MONGODB_COLLECTION", "chat_history")
         mongodb_db[coll_name].delete_many(
             {"tenant_id": tenant_id, "vertical": vertical, "type": "chat_message"}
         )

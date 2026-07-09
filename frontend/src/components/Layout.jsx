@@ -6,6 +6,7 @@ import './Layout.css';
 const Layout = () => {
   return (
     <div className="layout-container">
+      <div className="layout-bg-grid" />
       <Sidebar />
       <main className="main-content">
         <Outlet />

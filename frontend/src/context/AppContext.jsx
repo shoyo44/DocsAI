@@ -8,6 +8,56 @@ export const AppContextProvider = ({ children }) => {
   const [documents, setDocuments] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [activeJobs, setActiveJobs] = useState([]);
+  const theme = 'light';
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    localStorage.setItem('theme', 'light');
+  }, []);
+
+  const toggleTheme = () => {};
+  
+  // Gmail login simulation state
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('auth_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  const loginWithGoogle = (userData) => {
+    setUser(userData);
+    localStorage.setItem('auth_user', JSON.stringify(userData));
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('auth_user');
+  };
+  
+  // Pipeline threshold variables persisted in localStorage
+  const [temperature, setTemperature] = useState(() => {
+    const saved = localStorage.getItem('rag_temperature');
+    return saved !== null ? parseFloat(saved) : 0.05;
+  });
+  const [topK, setTopK] = useState(() => {
+    const saved = localStorage.getItem('rag_topK');
+    return saved !== null ? parseInt(saved, 10) : 10;
+  });
+  const [scoreFloor, setScoreFloor] = useState(() => {
+    const saved = localStorage.getItem('rag_scoreFloor');
+    return saved !== null ? parseFloat(saved) : 0.40;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('rag_temperature', temperature.toString());
+  }, [temperature]);
+
+  useEffect(() => {
+    localStorage.setItem('rag_topK', topK.toString());
+  }, [topK]);
+
+  useEffect(() => {
+    localStorage.setItem('rag_scoreFloor', scoreFloor.toString());
+  }, [scoreFloor]);
 
   const tenantId = TENANT_ID;
   const apiBase = API_BASE;
@@ -119,7 +169,18 @@ export const AppContextProvider = ({ children }) => {
       uploadDocument,
       tenantId,
       apiBase,
-      wsBase
+      wsBase,
+      temperature,
+      setTemperature,
+      topK,
+      setTopK,
+      scoreFloor,
+      setScoreFloor,
+      user,
+      loginWithGoogle,
+      logout,
+      theme,
+      toggleTheme
     }}>
       {children}
     </AppContext.Provider>

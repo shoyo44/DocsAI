@@ -1,7 +1,24 @@
 .layout-container {
   display: flex;
   min-height: 100vh;
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+.layout-bg-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.04) 0%, transparent 70%),
+    linear-gradient(rgba(15, 23, 42, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.015) 1px, transparent 1px);
+  background-size: 100% 100%, 48px 48px, 48px 48px;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .main-content {
@@ -9,4 +26,14 @@
   padding: 2rem;
   overflow-y: auto;
   height: 100vh;
+  transition: padding 0.3s ease;
+  z-index: 2;
+  position: relative;
 }
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 5rem 1rem 1.5rem 1rem;
+  }
+}
+

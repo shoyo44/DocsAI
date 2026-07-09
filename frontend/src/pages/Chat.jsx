@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Sparkles, Loader2, Trash2, File, Loader, AlertCircle } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Loader2, Trash2, File, Loader, AlertCircle, Zap, Search, FileText, Scale, ChevronDown } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../components/Toast';
 
 import './Chat.css';
 
@@ -38,8 +41,13 @@ const cleanContent = (content) => {
 };
 
 const Chat = () => {
-  const { vertical, setVertical, documents, activeJobs, tenantId, apiBase, wsBase } = useApp();
+  const { 
+    vertical, setVertical, documents, activeJobs, tenantId, apiBase, wsBase,
+    temperature, topK, scoreFloor 
+  } = useApp();
+  const toast = useToast();
   const [expandedEvidence, setExpandedEvidence] = useState({});
+  const inputRef = useRef(null);
   
   const toggleEvidence = (idx) => {
     setExpandedEvidence(prev => ({
@@ -56,7 +64,20 @@ const Chat = () => {
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
+  // Keyboard shortcut: Ctrl+K to focus input
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
+
   const scrollToBottom = () => {
+
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
@@ -126,26 +147,9 @@ const Chat = () => {
     e.preventDefault();
     if (!input.trim()) return;
 
-    const userMessage = { role: 'user', content: input };
+    const queryText = input;
+    const userMessage = { role: 'user', content: queryText };
     setMessages(prev => [...prev, userMessage]);
-    
-    // Sync user message to MongoDB
-    if (dbHistoryEnabled) {
-      try {
-        fetch(`${apiBase}/history/message`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tenant_id: tenantId,
-            vertical: vertical,
-            role: 'user',
-            content: input
-          })
-        }).catch(err => console.warn("Failed to sync user message:", err));
-      } catch (err) {
-        console.warn("Failed to sync user message:", err);
-      }
-    }
 
     setInput('');
     setIsTyping(true);
@@ -161,7 +165,10 @@ const Chat = () => {
           question: input,
           tenant_id: tenantId,
           vertical: vertical,
-          use_hyde: true
+          use_hyde: true,
+          temperature: temperature,
+          top_k: topK,
+          score_floor: scoreFloor
         }));
       };
 
@@ -215,16 +222,31 @@ const Chat = () => {
           socket.close();
           setIsTyping(false);
 
-          // Sync final assistant response to MongoDB
+          // Sync user and assistant responses to MongoDB with the resolved vertical
           if (dbHistoryEnabled) {
             try {
+              const resolvedVertical = data.data.vertical || vertical;
               const assistantContent = data.data.answer || data.data.content || '';
+              
+              // 1. Sync User Message
               fetch(`${apiBase}/history/message`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   tenant_id: tenantId,
-                  vertical: vertical,
+                  vertical: resolvedVertical,
+                  role: 'user',
+                  content: queryText
+                })
+              }).catch(err => console.warn("Failed to sync user message:", err));
+
+              // 2. Sync Assistant Message
+              fetch(`${apiBase}/history/message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  tenant_id: tenantId,
+                  vertical: resolvedVertical,
                   role: 'assistant',
                   content: assistantContent,
                   evidence: data.data.evidence || [],
@@ -234,8 +256,9 @@ const Chat = () => {
                   abstract_summary: data.data.abstract_summary
                 })
               }).catch(err => console.warn("Failed to sync assistant message:", err));
+              
             } catch (err) {
-              console.warn("Failed to sync assistant message:", err);
+              console.warn("Failed to sync conversation messages:", err);
             }
           }
 
@@ -253,11 +276,13 @@ const Chat = () => {
 
       socket.onerror = (err) => {
         console.error("WS Error:", err);
+        toast.error("Connection Error", "Failed to connect to RAG server. Make sure backend is running.");
         setIsTyping(false);
       };
 
     } catch (error) {
       console.error("Chat Error:", error);
+      toast.error("Execution Error", "An unexpected error occurred during pipeline startup.");
       setIsTyping(false);
     }
   };
@@ -274,12 +299,20 @@ const Chat = () => {
             <button className="clear-chat-btn" onClick={async () => {
               if (dbHistoryEnabled) {
                 try {
-                  await fetch(`${apiBase}/history?tenant_id=${tenantId}&vertical=${vertical}`, {
+                  const res = await fetch(`${apiBase}/history?tenant_id=${tenantId}&vertical=${vertical}`, {
                     method: 'DELETE'
                   });
+                  if (res.ok) {
+                    toast.success("Chat History Cleared", "MongoDB session logs have been purged.");
+                  } else {
+                    toast.warning("Local Reset Only", "Failed to purge database chat logs, but cleared locally.");
+                  }
                 } catch (err) {
                   console.warn("Failed to clear database history:", err);
+                  toast.warning("Local Reset Only", "Failed to purge database chat logs, but cleared locally.");
                 }
+              } else {
+                toast.info("Cleared Local Session", "Local storage message log has been reset.");
               }
               localStorage.removeItem(`chat_history_${vertical}`);
               setMessages([{ role: 'assistant', content: `Hello! I am your Aura AI Agent for the ${vertical} workspace. I can help you analyze documents, find compliance gaps, or summarize legal clauses. What should we look into today?` }]);
@@ -303,6 +336,39 @@ const Chat = () => {
         </div>
 
         <div className="chat-messages glass-panel">
+          {/* Welcome Hero — shown only when single welcome message exists */}
+          {messages.length === 1 && messages[0].role === 'assistant' && !isTyping && (
+            <div className="welcome-hero">
+              <div className="welcome-logo-ring">
+                <Zap size={32} />
+              </div>
+              <h2 className="welcome-title">What can I help you discover?</h2>
+              <p className="welcome-subtitle">Ask anything about your uploaded documents — I'll search, analyze, and cite sources.</p>
+              <div className="quick-prompts">
+                {[
+                  { icon: Search, text: "Summarize the key findings of my research paper" },
+                  { icon: Scale, text: "What are the liability clauses in the contract?" },
+                  { icon: FileText, text: "List all compliance requirements mentioned" },
+                ].map((prompt, i) => (
+                  <button
+                    key={i}
+                    className="quick-prompt-pill hover-lift"
+                    onClick={() => {
+                      setInput(prompt.text);
+                      setTimeout(() => {
+                        const form = document.querySelector('.chat-input-area');
+                        if (form) form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                      }, 50);
+                    }}
+                  >
+                    <prompt.icon size={14} />
+                    <span>{prompt.text}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {messages.map((msg, idx) => (
             <div key={idx} className={`message-wrapper ${msg.role}`}>
               <div className="message-icon">
@@ -321,26 +387,26 @@ const Chat = () => {
                   </div>
                 )}
 
-                {msg.evidence?.length > 0 && (
-                  <div className="evidence-section">
+                {msg.role === 'assistant' && msg.evidence?.length > 0 && (
+                  <div className="evidence-panel">
                     <button 
-                      type="button" 
-                      className="evidence-toggle-btn"
+                      className="evidence-toggle"
                       onClick={() => toggleEvidence(idx)}
                     >
-                      <span>{expandedEvidence[idx] ? "📖 Hide Supporting Evidence" : "📘 Show Supporting Evidence"} (Top {Math.min(3, msg.evidence.length)})</span>
+                      <Sparkles size={14} />
+                      <span>Found {msg.evidence.length} evidence chunks</span>
+                      <ChevronDown size={14} className={`arrow ${expandedEvidence[idx] ? 'open' : ''}`} />
                     </button>
                     
                     {expandedEvidence[idx] && (
-                      <div className="evidence-carousel animate-fade-in">
-                        {msg.evidence.slice(0, 3).map((chunk, i) => (
+                      <div className="evidence-list animate-fade-in">
+                        {msg.evidence.map((ev, i) => (
                           <div key={i} className="evidence-card">
-                            <div className="card-meta">
-                              <span className="page-pill">Page {chunk.page}</span>
-                              <span className="relevance-pill">{(chunk.score * 100).toFixed(0)}% Match</span>
+                            <div className="evidence-header">
+                              <span className="source-tag">Source: {ev.doc_name || ev.metadata?.filename || 'Unknown Document'}</span>
+                              <span className="score-tag">Score: {ev.score ? ev.score.toFixed(3) : 'N/A'}</span>
                             </div>
-                            <p className="card-text">"{chunk.text.substring(0, 300)}..."</p>
-                            <div className="card-footer">{chunk.doc_name}</div>
+                            <p className="evidence-text">{ev.text || ev.content}</p>
                           </div>
                         ))}
                       </div>
@@ -348,7 +414,11 @@ const Chat = () => {
                   </div>
                 )}
 
-                <p className="answer-text">{cleanContent(msg.content)}</p>
+                <div className="answer-text markdown-body">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {cleanContent(msg.content)}
+                  </ReactMarkdown>
+                </div>
 
                 {msg.citations?.length > 0 && (
                   <div className="citations">
@@ -376,6 +446,7 @@ const Chat = () => {
 
         <form className="chat-input-area" onSubmit={handleSend}>
           <input 
+            ref={inputRef}
             type="text" 
             placeholder="Ask about your documents (e.g., 'What is the liability cap in the vendor agreement?')"
             value={input}

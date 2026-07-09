@@ -49,7 +49,7 @@ def write_query_log(
     # 2. MongoDB Shared History Sync
     if mongodb_db is not None:
         try:
-            coll_name = os.getenv("MONGODB_COLLECTION", "applications")
+            coll_name = os.getenv("MONGODB_COLLECTION", "chat_history")
             doc = {
                 "type": "query_log",
                 "tenant_id": tenant_id,
@@ -83,7 +83,7 @@ def get_dashboard_stats(
         # Aggregate query log statistics from MongoDB if available
         if mongodb_db is not None:
             try:
-                coll_name = os.getenv("MONGODB_COLLECTION", "applications")
+                coll_name = os.getenv("MONGODB_COLLECTION", "chat_history")
                 cursor = mongodb_db[coll_name].find({"tenant_id": tenant_id, "type": "query_log"})
 
                 total_queries = 0
@@ -146,7 +146,7 @@ def get_recent_queries(
     """Return the most recent query logs for a tenant from MongoDB or local GraphStore."""
     if mongodb_db is not None:
         try:
-            coll_name = os.getenv("MONGODB_COLLECTION", "applications")
+            coll_name = os.getenv("MONGODB_COLLECTION", "chat_history")
             cursor = mongodb_db[coll_name].find(
                 {"tenant_id": tenant_id, "type": "query_log"}
             ).sort("created_at", -1).limit(limit)

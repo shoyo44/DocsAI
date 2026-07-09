@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Shield, Database, Sparkles, RefreshCw, Trash2, Cpu, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../components/Toast';
 import './Settings.css';
 
 const Settings = () => {
-  const { tenantId, vertical, setVertical, apiBase } = useApp();
-  const [theme, setTheme] = useState('dark');
-  const [temperature, setTemperature] = useState(0.05);
-  const [topK, setTopK] = useState(10);
-  const [scoreFloor, setScoreFloor] = useState(0.40);
+  const { 
+    tenantId, vertical, setVertical, apiBase,
+    temperature, setTemperature,
+    topK, setTopK,
+    scoreFloor, setScoreFloor
+  } = useApp();
+  const toast = useToast();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   
@@ -55,12 +58,12 @@ const Settings = () => {
         method: 'DELETE'
       });
       if (response.ok) {
-        setMessage({ type: 'success', text: 'Graph Store cleared successfully.' });
+        toast.success("Graph Store Cleared", "All documents, index structures, and caches have been purged.");
       } else {
-        setMessage({ type: 'error', text: 'Failed to clear Graph Store.' });
+        toast.error("Clear Failed", "Failed to delete knowledge assets from the graph store database.");
       }
     } catch (err) {
-      setMessage({ type: 'error', text: `Error: ${err.message}` });
+      toast.error("Network Error", `An error occurred while connecting to backend: ${err.message}`);
     } finally {
       setLoading(false);
     }

@@ -286,6 +286,19 @@ async def websocket_endpoint(websocket: WebSocket):
         # 4. Assemble pipeline
         pipeline = pipeline_factory.build_pipeline(vertical, cf_client, reranker)
 
+        # Override parameters from payload if provided
+        temperature = payload.get("temperature")
+        if temperature is not None:
+            pipeline.config["temperature"] = float(temperature)
+            
+        top_k_val = payload.get("top_k")
+        if top_k_val is not None:
+            pipeline.config["top_k"] = int(top_k_val)
+            
+        score_floor = payload.get("score_floor")
+        if score_floor is not None:
+            pipeline.config["score_floor"] = float(score_floor)
+
         # 5. Retrieve & Rerank Chunks
         top_k      = pipeline.config.get("top_k", 10)
         raw_chunks = await pipeline.retriever.retrieve_with_fallback(
@@ -396,6 +409,7 @@ async def websocket_endpoint(websocket: WebSocket):
                                     formatted_citations.append(str(cit))
                             output_dict["citations"] = formatted_citations
                             
+                    output_dict["vertical"] = active_vertical
                     await websocket.send_json({
                         "type": "done",
                         "data": output_dict
@@ -445,6 +459,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             formatted_citations.append(str(cit))
                     parsed_data["citations"] = formatted_citations
 
+            parsed_data["vertical"] = active_vertical
             await websocket.send_json({
                 "type": "done",
                 "data": parsed_data

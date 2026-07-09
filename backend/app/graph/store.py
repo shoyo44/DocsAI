@@ -195,6 +195,7 @@ class GraphStore:
 
     def __init__(self, data_dir: str = "./data"):
         self._lock = RWLock()
+        self._write_lock = threading.Lock()
         self._graph = nx.DiGraph()
         self._data_dir = Path(data_dir)
         self._data_dir.mkdir(parents=True, exist_ok=True)
@@ -1036,10 +1037,11 @@ class GraphStore:
     def _write_file(self, payload: dict) -> None:
         """Atomic write execution running on a background worker thread."""
         try:
-            tmp_path = self._filepath.with_suffix(".tmp")
-            with open(tmp_path, "w", encoding="utf-8") as f:
-                json.dump(payload, f, separators=(",", ":"))
-            tmp_path.replace(self._filepath)
+            with self._write_lock:
+                tmp_path = self._filepath.with_suffix(".tmp")
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    json.dump(payload, f, separators=(",", ":"))
+                tmp_path.replace(self._filepath)
         except Exception as exc:
             logger.error("GraphStore background disk write failed: %s", exc)
 

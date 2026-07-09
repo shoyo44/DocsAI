@@ -6,6 +6,7 @@ import {
   ArrowRight, Info, RefreshCw,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../components/Toast';
 import './Vault.css';
 
 // ── Vertical metadata ──────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ const DETECT_PHASES = [
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const Vault = () => {
+  const toast = useToast();
   const [dragActive, setDragActive]             = useState(false);
   const [file, setFile]                         = useState(null);
   const [uploading, setUploading]               = useState(false);
@@ -198,12 +200,14 @@ const Vault = () => {
       // Sync context vertical with confirmed choice right before upload
       setVertical(confirmedVertical);
       await uploadDocument(file, confirmedVertical);
+      toast.success("Ingestion Started", `"${file.name}" is being processed in the background.`);
       setFile(null);
       setDetection(null);
       setConfirmedVertical(null);
       setShowSummaryDetail(false);
     } catch (err) {
       setError(err.message);
+      toast.error("Upload Failed", err.message);
     } finally {
       setUploading(false);
     }
@@ -214,13 +218,19 @@ const Vault = () => {
     if (!window.confirm('Delete this document? All associated chunks and graph nodes will be removed.')) return;
     try {
       const res = await fetch(`${apiBase}/documents/${docId}?tenant_id=${tenantId}`, { method: 'DELETE' });
-      if (res.ok) fetchDocuments();
-      else {
+      if (res.ok) {
+        toast.success("Document Purged", "Document and associated indexing nodes deleted.");
+        fetchDocuments();
+      } else {
         const data = await res.json().catch(() => ({}));
-        setError(`Delete failed: ${data.detail || res.statusText}`);
+        const errMsg = `Delete failed: ${data.detail || res.statusText}`;
+        setError(errMsg);
+        toast.error("Deletion Failed", errMsg);
       }
     } catch (err) {
-      setError(`Delete failed: ${err.message}`);
+      const errMsg = `Delete failed: ${err.message}`;
+      setError(errMsg);
+      toast.error("Deletion Failed", errMsg);
     }
   };
 
@@ -230,9 +240,11 @@ const Vault = () => {
       await Promise.all(documents.map(doc =>
         fetch(`${apiBase}/documents/${doc.id}?tenant_id=${tenantId}`, { method: 'DELETE' })
       ));
+      toast.success("Vault Cleared", "All documents purged successfully.");
       fetchDocuments();
     } catch (err) {
       setError(`Clear all failed: ${err.message}`);
+      toast.error("Purge Failed", err.message);
     }
   };
 
@@ -605,7 +617,17 @@ const Vault = () => {
           </div>
 
           {loadingDocs ? (
-            <div className="loading-state"><Loader className="spin" /> Loading vault…</div>
+            <div className="skeleton-list">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="skeleton-item">
+                  <div className="skeleton-icon" />
+                  <div className="skeleton-details">
+                    <div className="skeleton-title" />
+                    <div className="skeleton-meta" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : documents.length === 0 ? (
             <p className="empty-state">No documents found. Upload one to get started!</p>
           ) : (

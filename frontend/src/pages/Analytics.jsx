@@ -5,7 +5,8 @@ import { useApp } from '../context/AppContext';
 import './Analytics.css';
 
 const Analytics = () => {
-  const { documents, tenantId, apiBase } = useApp();
+  const { documents, tenantId, apiBase, theme } = useApp();
+  const isLight = theme === 'light';
   const [graphData, setGraphData]   = useState({ nodes: [], links: [] });
   const [stats, setStats]           = useState(null);
   const [recent, setRecent]         = useState([]);
@@ -77,6 +78,12 @@ const Analytics = () => {
 
   const handleReset = () => {
     fgRef.current?.zoomToFit(400, 40);
+  };
+
+  const focusNode = (node) => {
+    if (!node || !fgRef.current) return;
+    fgRef.current.centerAt(node.x, node.y, 800);
+    fgRef.current.zoom(4, 800);
   };
 
   const fetchDocChunks = async (doc) => {
@@ -158,7 +165,7 @@ const Analytics = () => {
               nodeColor={n => n.color}
               nodeRelSize={7}
               nodeVal={n => n.val}
-              linkColor={() => 'rgba(255,255,255,0.15)'}
+              linkColor={() => 'rgba(255, 255, 255, 0.15)'}
               linkDirectionalParticles={4}
               linkDirectionalParticleWidth={2}
               linkDirectionalParticleSpeed={0.006}
@@ -175,7 +182,7 @@ const Analytics = () => {
                 const label    = node.name || '';
                 const fontSize = 10 / globalScale;
                 ctx.font      = `${fontSize}px Sans-Serif`;
-                ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
                 ctx.textAlign  = 'center';
                 ctx.fillText(label.slice(0, 20), node.x, node.y + 12);
               }}
@@ -183,33 +190,97 @@ const Analytics = () => {
           )}
         </div>
 
-        {selectedNode && (
-          <div className="selected-node-panel animate-slide-up glass-panel">
-            <div className="panel-header">
-              <span className="panel-dot" style={{ backgroundColor: selectedNode.color }}></span>
-              <h4>Node Inspector</h4>
-              <button className="panel-close-btn" onClick={() => setSelectedNode(null)}>×</button>
-            </div>
-            <div className="panel-body">
-              <div className="panel-row">
-                <span className="label">Name:</span>
-                <span className="value bold">{selectedNode.name}</span>
+        {selectedNode && (() => {
+          const neighbors = graphData.links
+            .map(link => {
+              const s = link.source;
+              const t = link.target;
+              const sourceId = typeof s === 'object' ? s.id : s;
+              const targetId = typeof t === 'object' ? t.id : t;
+              
+              if (sourceId === selectedNode.id) {
+                return typeof t === 'object' ? t : graphData.nodes.find(n => n.id === targetId);
+              }
+              if (targetId === selectedNode.id) {
+                return typeof s === 'object' ? s : graphData.nodes.find(n => n.id === sourceId);
+              }
+              return null;
+            })
+            .filter(Boolean);
+
+          return (
+            <div className="selected-node-panel animate-slide-up glass-panel">
+              <div className="panel-header">
+                <span className="panel-dot" style={{ backgroundColor: selectedNode.color }}></span>
+                <h4>Node Inspector</h4>
+                <button className="panel-close-btn" onClick={() => setSelectedNode(null)}>×</button>
               </div>
-              <div className="panel-row">
-                <span className="label">Type:</span>
-                <span className="value badge" style={{ color: selectedNode.color, border: `1px solid ${selectedNode.color}` }}>
-                  {selectedNode.type || "entity"}
-                </span>
+              <div className="panel-body">
+                <div className="panel-row">
+                  <span className="label">Name:</span>
+                  <span className="value bold">{selectedNode.name}</span>
+                </div>
+                <div className="panel-row">
+                  <span className="label">Type:</span>
+                  <span className="value badge" style={{ color: selectedNode.color, border: `1px solid ${selectedNode.color}` }}>
+                    {selectedNode.type || "entity"}
+                  </span>
+                </div>
+                <p className="panel-desc">
+                  {selectedNode.type === 'document' 
+                    ? "This node represents a source knowledge document uploaded in the workspace." 
+                    : "This node represents a key named entity extracted from documents to map connections."
+                  }
+                </p>
+                <div className="panel-actions" style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+                  <button className="focus-btn hover-lift" onClick={() => focusNode(selectedNode)} style={{
+                    flex: 1,
+                    padding: '0.4rem',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    background: 'var(--accent-primary)',
+                    color: '#fff',
+                    borderRadius: '6px',
+                    textAlign: 'center',
+                    cursor: 'pointer'
+                  }}>
+                    🎯 Zoom & Center
+                  </button>
+                </div>
+                {neighbors.length > 0 && (
+                  <div className="neighbors-section" style={{ marginTop: '1rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+                    <span className="label" style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', fontWeight: '700' }}>
+                      Connections ({neighbors.length})
+                    </span>
+                    <div className="neighbors-list" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.4rem', maxHeight: '100px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {neighbors.map((nb, idx) => (
+                        <button
+                          key={idx}
+                          className="neighbor-pill hover-lift"
+                          onClick={() => {
+                            setSelectedNode(nb);
+                            focusNode(nb);
+                          }}
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            fontSize: '0.7rem',
+                            background: 'var(--bg-tertiary)',
+                            color: 'var(--text-primary)',
+                            borderRadius: '4px',
+                            border: `1px solid ${nb.color || 'var(--border-subtle)'}`,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {nb.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              <p className="panel-desc">
-                {selectedNode.type === 'document' 
-                  ? "This node represents a source knowledge document uploaded in the workspace." 
-                  : "This node represents a key named entity extracted from documents to map connections."
-                }
-              </p>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         <div className="graph-legend">
           <div className="legend-item">
@@ -351,9 +422,9 @@ const Analytics = () => {
                     className="glass-panel" 
                     style={{ 
                       padding: '0.9rem', 
-                      border: '1px solid rgba(255, 255, 255, 0.08)', 
+                      border: '1px solid var(--border-subtle)', 
                       borderRadius: '6px', 
-                      background: 'rgba(255, 255, 255, 0.015)' 
+                      background: 'var(--bg-primary)' 
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.72rem', opacity: 0.7 }}>
@@ -361,8 +432,9 @@ const Analytics = () => {
                       <span className="status-tag info" style={{ 
                         margin: 0, 
                         fontSize: '0.65rem',
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid rgba(255,255,255,0.1)'
+                        background: 'var(--bg-tertiary)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-secondary)'
                       }}>Page {c.page || 'N/A'}</span>
                     </div>
                     
@@ -370,19 +442,19 @@ const Analytics = () => {
                       fontSize: '0.85rem', 
                       lineHeight: '1.45', 
                       margin: '0 0 0.5rem 0', 
-                      color: 'rgba(255, 255, 255, 0.85)', 
+                      color: 'var(--text-primary)', 
                       whiteSpace: 'pre-wrap',
-                      background: 'rgba(0,0,0,0.15)',
+                      background: 'var(--bg-secondary)',
                       padding: '0.6rem',
                       borderRadius: '4px',
-                      borderLeft: '2px solid rgba(255,255,255,0.15)'
+                      borderLeft: '2px solid var(--border-strong)'
                     }}>
                       {c.text}
                     </p>
                     
                     {(c.clause_ref || c.article_ref || c.section) && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
-                        {c.section && <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', opacity: 0.85 }}>Sec: {c.section}</span>}
+                        {c.section && <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', opacity: 0.85, color: 'var(--text-secondary)' }}>Sec: {c.section}</span>}
                         {c.clause_ref && <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', color: 'var(--accent-primary)' }}>Clause: {c.clause_ref}</span>}
                         {c.article_ref && <span style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', color: '#10b981' }}>Article: {c.article_ref}</span>}
                       </div>
