@@ -211,7 +211,7 @@ app = FastAPI(
 )
 
 # CORS configurations
-cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")
+cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000,https://docs-ai-ashen.vercel.app")
 allowed_origins = [orig.strip() for orig in cors_origins_raw.split(",") if orig.strip()]
 
 app.add_middleware(
