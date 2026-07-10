@@ -59,12 +59,17 @@ export const AppContextProvider = ({ children }) => {
     localStorage.setItem('rag_scoreFloor', scoreFloor.toString());
   }, [scoreFloor]);
 
-  const tenantId = TENANT_ID;
+  // Scoped tenantId dynamically based on the logged-in user's email for workspace context separation
+  const tenantId = user && user.email 
+    ? 'user_' + user.email.toLowerCase().replace(/[^a-z0-9]/g, '_') 
+    : TENANT_ID;
+    
   const apiBase = API_BASE;
   const wsBase = WS_BASE;
-
-  const fetchDocuments = async () => {
+ 
+  const fetchDocuments = React.useCallback(async () => {
     try {
+      setLoadingDocs(true);
       const response = await fetch(`${apiBase}/documents?tenant_id=${tenantId}`);
       if (response.ok) {
         const data = await response.json();
@@ -75,11 +80,11 @@ export const AppContextProvider = ({ children }) => {
     } finally {
       setLoadingDocs(false);
     }
-  };
-
+  }, [apiBase, tenantId]);
+ 
   useEffect(() => {
     fetchDocuments();
-  }, []);
+  }, [fetchDocuments]);
 
   const addJob = (job) => {
     setActiveJobs(prev => [job, ...prev]);
