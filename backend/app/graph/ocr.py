@@ -270,7 +270,7 @@ async def extract_pages(
         # Tier 2+3+3.5: OCR blank/short pages concurrently with bounded Semaphore
         if use_ocr_fallback and blank_pages:
             logger.info("Running parallel OCR on %d candidate pages...", len(blank_pages))
-            sem = asyncio.Semaphore(4)  # Bounded concurrency
+            sem = asyncio.Semaphore(1)  # Bounded concurrency (lowered to 1 for Render 512MB RAM safety)
 
             async def ocr_task(page_num: int) -> Optional[Dict[str, Any]]:
                 async with sem:

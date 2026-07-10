@@ -97,13 +97,26 @@ export const AppContextProvider = ({ children }) => {
   };
 
   const pollJobStatus = (jobId) => {
+    let failureCount = 0;
     const interval = setInterval(async () => {
       try {
         const statusRes = await fetch(`${apiBase}/jobs/${jobId}`);
+        
+        if (statusRes.status === 404) {
+          clearInterval(interval);
+          updateJob(jobId, {
+            status: 'failed',
+            error: 'Job lost. The backend server restarted or the Job ID was not found.',
+            completedAt: Date.now()
+          });
+          return;
+        }
+        
         if (!statusRes.ok) throw new Error("Failed to check status");
         
+        failureCount = 0; // Reset consecutive failures on success
         const statusData = await statusRes.json();
-
+ 
         if (statusData.status === 'completed') {
           clearInterval(interval);
           updateJob(jobId, {
@@ -118,7 +131,7 @@ export const AppContextProvider = ({ children }) => {
           setTimeout(() => {
             setActiveJobs(prev => prev.filter(job => job.id !== jobId));
           }, 10000);
-
+ 
         } else if (statusData.status === 'failed') {
           clearInterval(interval);
           updateJob(jobId, {
@@ -130,8 +143,16 @@ export const AppContextProvider = ({ children }) => {
           updateJob(jobId, { status: 'running' });
         }
       } catch (err) {
-        // network or server issues — keep polling for a few retries, or fail
         console.error("Error polling job status:", err);
+        failureCount += 1;
+        if (failureCount >= 6) {
+          clearInterval(interval);
+          updateJob(jobId, {
+            status: 'failed',
+            error: 'Lost connection to backend server. Please check your connection and retry.',
+            completedAt: Date.now()
+          });
+        }
       }
     }, 2000);
   };
