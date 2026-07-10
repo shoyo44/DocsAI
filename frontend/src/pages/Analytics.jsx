@@ -59,9 +59,10 @@ const Analytics = () => {
     fetchAll();
     const obs = new ResizeObserver(() => {
       if (containerRef.current) {
+        const isMobile = window.innerWidth < 768;
         setDimensions({
-          width: containerRef.current.offsetWidth - 32,
-          height: 480,
+          width: containerRef.current.offsetWidth - (isMobile ? 16 : 32),
+          height: isMobile ? 300 : 480,
         });
       }
     });
@@ -314,7 +315,7 @@ const Analytics = () => {
       <div className="doc-chunks-explorer-container animate-slide-up" style={{ 
         marginTop: '1.5rem', 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
         gap: '1.5rem' 
       }}>
         

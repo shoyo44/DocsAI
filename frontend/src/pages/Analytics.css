@@ -134,9 +134,10 @@
 
 .graph-legend {
   display: flex;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.8rem 1.2rem;
   margin-top: 1rem;
-  padding: 0.5rem 0;
+  padding: 0.5rem;
   justify-content: center;
 }
 
@@ -331,4 +332,25 @@
   line-height: 1.5;
   margin: 0.5rem 0 0 0;
   font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .graph-canvas-container {
+    min-height: 300px;
+  }
+  
+  .placeholder-viz {
+    height: 300px;
+  }
+  
+  .graph-overview {
+    padding: 1.2rem;
+    min-height: auto;
+  }
+
+  .recent-table th, 
+  .recent-table td {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.78rem;
+  }
 }
