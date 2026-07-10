@@ -409,7 +409,7 @@ async def websocket_endpoint(websocket: WebSocket):
                                     formatted_citations.append(str(cit))
                             output_dict["citations"] = formatted_citations
                             
-                    output_dict["vertical"] = active_vertical
+                    output_dict["vertical"] = pipeline.vertical
                     await websocket.send_json({
                         "type": "done",
                         "data": output_dict
@@ -459,7 +459,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             formatted_citations.append(str(cit))
                     parsed_data["citations"] = formatted_citations
 
-            parsed_data["vertical"] = active_vertical
+            parsed_data["vertical"] = pipeline.vertical
             await websocket.send_json({
                 "type": "done",
                 "data": parsed_data
