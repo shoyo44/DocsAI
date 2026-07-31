@@ -4,6 +4,7 @@ DocsAI is an enterprise-grade AI Document Q&A and Knowledge Graph Platform desig
 
 Built with a modern **FastAPI** backend, a custom in-process **Hybrid Vector-Graph Database** (NetworkX + FAISS), **Cloudflare Workers AI** for LLM inference and embeddings, and a polished **React/Vite** SPA frontend, the system provides context-aware multi-step reasoning, semantic citations, automated risk scanning, and historical query auditing.
 
+> 🚀 **Live Demo:** [docs-ai-ashen.vercel.app](https://docs-ai-ashen.vercel.app)
 > 📐 For a full technical deep-dive, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ---
